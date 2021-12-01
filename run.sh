@@ -1,0 +1,1 @@
+dyalog DYALOG_LINEEDITOR_MODE=1 -script $1
