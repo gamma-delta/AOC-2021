@@ -1,0 +1,41 @@
+(define input (for read (string/lines (io/read-file "day02.txt"))))
+
+
+(define (sub-path1 instrs)
+  (let loop ([instrs instrs] [x 0] [y 0])
+    (if instrs
+      (let (
+        [instr (car instrs)]
+        [opc (first instr)]
+        [amount (second instr)])
+        ; Record the current x y and recurse
+        (cons (list x y) (apply loop (cdr instrs) (switch opc
+          ['forward (list (+ x amount) y)]
+          ['down (list x (+ y amount))]
+          ['up (list x (- y amount))]
+          false))))
+      ; if we're out of instrs, record the final x y.
+      (list (list x y)))))
+
+(define (sub-path2 instrs)
+  (let loop ([instrs instrs] [x 0] [y 0] [aim 0])
+    (if instrs
+      (let (
+        [instr (car instrs)]
+        [opc (first instr)]
+        [amount (second instr)])
+        ; Record the current x y and recurse
+        ; Note the problem statement doesn't ask us to keep track of aim so we won't
+        (cons (list x y aim) (apply loop (cdr instrs) (switch opc
+          ['down (list x y (+ aim amount))]
+          ['up (list x y (- aim amount))]
+          ['forward (list (+ x amount) (+ y (* aim amount)) aim)]
+          false))))
+      ; if we're out of instrs, record the final x y.
+      (list (list x y)))))
+
+; Part 1
+(prn (apply * (last (sub-path1 input))))
+
+; Part 2
+(prn (apply * (last (sub-path2 input))))

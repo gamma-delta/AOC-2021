@@ -1,8 +1,8 @@
 # Advent of Code 2021
 
-in Dyalog APL (after a short and unsuccessful attempt to do it in [PLEASE](https://github.com/gamma-delta/please))
+in [PLEASE](https://github.com/gamma-delta/please) if I can or APL if I can't
 
-## To Run Things
+## To Run APL Code
 
 `dyalog DYALOG_LINEEDITOR_MODE=1 -script dayXX.dyalog` when in WSL
 
