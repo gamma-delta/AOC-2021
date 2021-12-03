@@ -1,0 +1,66 @@
+(define (clean-input input) (for 
+  (\ (line) 
+    (for (compose first read) (string/chars line))) 
+  (string/lines input)))
+(define input (clean-input (io/read-file "day03.txt")))
+
+(define example-input (clean-input <<EOF
+00100
+11110
+10110
+10111
+10101
+01111
+00111
+11100
+10000
+11001
+00010
+01010
+EOF
+))
+
+; the little bit extra on the 2 is to *make sure* a tie between 0 and 1 returns 1
+(define (most-common-bit data) (> (fold + 0 data) (/ (list/len data) 2.0001)))
+
+(define (bits->int bits) 
+  ; I can't believe I'm doing this
+  ; if it works it works
+  (car (read (apply string "0b" bits))))
+
+(define (digest data most?)
+  ; to figure out which is more common, we check if the sum is greater than half the length.
+  (let (
+    [trans (transpose data)] 
+    [rowcount (list/len data)]
+    [checker (if most? identity not)]
+    [oks (for (\ (col) (bool->number (checker (most-common-bit col)))) trans)])
+    (bits->int oks)))
+(define (life-support data most?)
+  (let (
+    [trans (transpose data)]
+    [rowcount (list/len data)]
+    [checker (if most? identity not)]
+    [correct-idx 
+      (let loop ([col-idx 0] [checkable-row-idxes (range rowcount)])
+        (let (
+          [col (list/nth trans col-idx)]
+          [mcb (most-common-bit (index-many col checkable-row-idxes))]
+          [passing-indices (filter (\ (row-idx) (checker (= mcb (list/nth col row-idx)))) checkable-row-idxes)])
+          ;; (prn (string "col #" col-idx " mcb: " (bool->number mcb) " passed: " passing-indices))
+          (if (= (list/len passing-indices) 1)
+            ; we found our single index!
+            (car passing-indices)
+            ; too bad, keep going
+            (loop (++ col-idx) passing-indices))))])
+    ; mmppffrg should have done this in apl grumble grumble inbuilt binary encode/decode
+    (bits->int (list/nth data correct-idx))))
+
+(profiling/do 
+  (do
+    ; part 1
+    (prn (* (digest input true) (digest input false)))
+    ; part 2
+    (prn (* (life-support input true) (life-support input false)))
+  ))
+  
