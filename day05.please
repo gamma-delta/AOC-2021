@@ -1,0 +1,80 @@
+; Dear anyone who may be reading along: the function syntax is different now
+; because I updated PLEASE
+
+(define counter/new map/new)
+(defun counter/add! (counter . ks) 
+  (fold (\ (map k) 
+    (let ([v (map/get map k)])
+      (map/insert! map k (if v (++ v) 1))))
+    counter ks))
+(defun counter/add (counter . ks) 
+  (transient/persist! (apply counter/add! (transient/new counter) ks)))
+(defun counter/get (counter k)
+  (or (map/get counter k) 0))
+
+; test
+(define mycounter (counter/add (counter/new) 'a 'b 'c 'c 'b 'c 'd 'a))
+(assert-eq (counter/get mycounter 'a) 2)
+(assert-eq (counter/get mycounter 'b) 2)
+(assert-eq (counter/get mycounter 'c) 3)
+(assert-eq (counter/get mycounter 'd) 1)
+
+; anyways onto code
+
+(defun process-input (input) (for 
+  (\ (line) (scanf line "%i,%i -> %i,%i"))
+  (string/lines input)))
+(define input (process-input (io/read-file "day05.txt")))
+(define test-input (process-input <<EOF
+0,9 -> 5,9
+8,0 -> 0,8
+9,4 -> 3,4
+2,2 -> 2,1
+7,0 -> 7,4
+6,4 -> 2,0
+0,9 -> 2,9
+3,4 -> 1,4
+0,0 -> 8,8
+5,5 -> 8,2
+EOF
+))
+
+(defun linegen-factory (do-diagonals) 
+  (lambda ((x1' y1' x2' y2'))
+    (let ([(x1 x2) (sort (list x1' x2'))] [(y1 y2) (sort (list y1' y2'))])
+      (match (list (= x1 x2) (= y1 y2) do-diagonals)
+        ; horizontal : reminder range is exclusive
+        [(true false _) (zip (repeat x1) (range y1 (++ y2)))]
+        ; vertical
+        [(false true _) (zip (range x1 (++ x2)) (repeat y1))]
+        ; just a dot
+        [(true true _) (list (list x1 y1))]
+        ; do diagonals
+        ; code assumes x1 < x2 and y1 < y2, or upward-sloping line
+        ; if this is not the case, reverse them
+        [(false false true) (zip 
+          ((if (< x1' x2') reverse identity) (range x1 (++ x2)))
+          ((if (< y1' y2') reverse identity) (range y1 (++ y2))))]
+        ; final case: we aren't doing diagonals and they don't match
+        [(false false false) false]))))
+
+(defun insert-lines (lines linegen)
+  (let loop ([lines lines] [counter (transient/new (counter/new))])
+    (if lines
+      (let ([points (linegen (car lines))])
+        ;; (prn (string (car lines) " -> " points))
+        (prn (car lines))
+        (loop (cdr lines) (if points
+          (apply counter/add! counter (for string points))
+          counter)))
+      counter)))
+
+;; (prn (list/len (filter >=2 (map/vals (insert-lines test-input (linegen-factory false))))))
+;; (prn (list/len (filter >=2 (map/vals (insert-lines test-input (linegen-factory true))))))
+
+; part 1
+;; (prn (list/len (filter >=2 (map/vals (insert-lines input (linegen-factory false))))))
+
+; part 2
+(prn (list/len (filter >=2 (map/vals (insert-lines input (linegen-factory true))))))
+

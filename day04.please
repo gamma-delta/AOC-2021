@@ -1,0 +1,48 @@
+(define input (io/read-file "day04.txt"))
+
+(define splitted (string/split input "\n\n"))
+(define draw-order (for 
+  (\ (num) (car (read num))) 
+  (string/split (car splitted) ",")))
+(define boards (for 
+  (\ (board) (for read (string/lines board)))
+  (cdr splitted)))
+
+; Take a 5x5 bool matrix of called/uncalled and see if it wins
+(define (board-wins board)
+  (let (
+    [trans (transpose board)])
+    ; Check if either ...
+    (or
+      ; any row is all 1s
+      (apply or (for (\ (row) (apply and row)) board))
+      ; or any entire col is all 1s
+      (apply or (for (\ (col) (apply and col)) trans)))))
+
+;*
+(assert-eq false (board-wins '(
+  (true  true  true  true  false)
+  (true  true  true  false true )
+  (true  true  false true  true )
+  (true  false true  true  true )
+  (false true  true  true  true ))) 'one)
+(assert-eq true (board-wins '(
+  (true  true  true  true  true )
+  (false false false false false)
+  (false false false false false)
+  (false false false false false)
+  (false false false false false))) 'two)
+(assert-eq true (board-wins '(
+  (true  false false false false)
+  (true  false false false false)
+  (true  false false false false)
+  (true  false false false false)
+  (true  false false false false))) 'three)
+*;
+
+(define (make-board-bools)
+  (for (\ _ (for (const false) (range 5))) (range 5)))
+
+(define (board-selections board draws)
+  (let loop ([draws draws] [bools (make-board-bools)])
+    ))
