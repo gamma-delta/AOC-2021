@@ -1,0 +1,44 @@
+(defun process-input (input)
+  (for (\ (x) (car (read x)))
+    (string/split input ",")))
+(define input (process-input (io/read-file "day06.txt")))
+(define test-input (process-input "3,4,3,1,2"))
+
+(defun grow-one (age)
+  (if (!= age 0)
+    (list (-- age) false)
+    (list 6 8)))
+
+(defun grow-all (original-ages)
+  (let loop ([new-ages (transient/new (counter/new))] [ages (map->list original-ages)])
+    (if ages
+      (let (
+        [(age . count) (car ages)] 
+        [(updated-age new-age) (grow-one age)])
+        (loop   
+          (counter/add-n! 
+            (if new-age (counter/add-n! new-ages (list new-age count)) new-ages) 
+            (list updated-age count))
+          (cdr ages)))
+      new-ages)))
+
+(defun grow-over-time (start-ages timer)
+  (let loop (
+    [counter (apply counter/add! (transient/new (counter/new)) start-ages)] 
+    [timer timer])
+    ;; (print timer ": " counter)
+    (if (> timer 0)
+      (loop (grow-all counter) (-- timer))
+      (transient/persist! counter))))
+
+;; (defun standardize (counter)
+;;   (sort (counter/inflate counter)))
+;; (print (standardize (grow-over-time test-input 18)))
+;; (print (sort (process-input "6,0,6,4,5,6,0,1,1,2,6,0,1,1,1,2,2,3,3,4,6,7,8,8,8,8")))
+
+
+(profiling/do (do
+  ; part 1
+  (prn (counter/count (grow-over-time input 80)))
+  ; part 2
+  (prn (counter/count (grow-over-time input 256)))))
