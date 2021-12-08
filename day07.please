@@ -1,0 +1,34 @@
+; PEG is fun but god is it slow
+(defun process-input (input) 
+  (peg/match '#{
+    number (/ 'd+ read/integer)
+    numlist (* number (? (* "," numlist)))
+    main numlist
+  } input))
+(define input (process-input (io/read-file "day07.txt")))
+(define test-input (process-input "16,1,2,0,4,2,7,1,2,14"))
+
+(defun shortest-dist (nums dister)
+  (least (map (\ (pos) (let1 [dist (dister pos nums)]
+    (print "dist for " pos ": " dist)
+    dist))
+    (range (greatest nums)))))
+
+
+(defun smart-shortest-dist (nums dister)
+  (extreme (\ (pos) (dister pos nums)) (/ (greatest nums) 2.0)))
+
+(defun dist-p1 (x nums)
+  (fold (\ (acc num) (+ acc (abs (- num x)))) 0.0 nums))
+(defun dist-p2 (x nums)
+  (fold (\ (acc num) (+ acc (triangle (abs (- num x))))) 0.0 nums))
+
+(define triangle (memoize-loop loop (x)
+  (if (<= x 1) x
+    (+ x (loop (-- x))))))
+
+; part 1
+(print (smart-shortest-dist input dist-p1))
+
+; part 2
+;; (print (shortest-dist input dist-p2))

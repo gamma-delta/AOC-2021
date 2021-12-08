@@ -41,4 +41,5 @@
   ; part 1
   (prn (counter/count (grow-over-time input 80)))
   ; part 2
-  (prn (counter/count (grow-over-time input 256)))))
+  (prn (counter/count (grow-over-time input 256))))
+  0.0)

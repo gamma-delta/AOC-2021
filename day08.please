@@ -1,0 +1,80 @@
+(define peg '#{
+    seg (between 2 7 (range "ag"))
+    signals (between 10 10 (* 'seg " "))
+    output (between 4 4 (* " " 'seg))
+    line (group (* (group signals) "|" (group output)))
+    main (* line (? (* "\n" line)))
+})
+
+; The peg match is "naive" cause I've written code to turn PEGs into bytecode,
+; but not code to execute the bytecode.
+(defun process-input (input)
+  (peg/match/naive '#{
+    seg (between 2 7 (range "ag"))
+    signals (between 10 10 (* 'seg " "))
+    output (between 4 4 (* " " 'seg))
+    line (group (* (group signals) "|" (group output)))
+    main (+ (* line "\n" main) line)
+  } input))
+(define input (process-input (io/read-file "day08.txt")))
+(define test-input (process-input <<EOF
+acedgfb cdfbe gcdfa fbcad dab cefabd cdfgeb eafb cagedb ab | cdfeb fcadb cdfeb cdbaf
+EOF
+))
+
+(define digit-to-count '#{
+  0 6
+  1 2
+  2 5
+  3 5
+  4 4
+  5 5
+  6 6
+  7 3
+  8 7
+  9 6
+})
+(define pat-to-digit '#{
+  (1 2 3 5 6 7) 0
+  (3 6) 1
+  (1 3 4 5 7) 2
+  (1 3 4 6 7) 3
+  (2 3 4 6) 4
+  (1 2 4 6 7) 5
+  (1 2 4 5 6 7) 6
+  (1 3 6) 7
+  (1 2 3 4 5 6 7) 8
+  (1 2 3 4 6 7) 9
+})
+
+; For part 1 just count how many times there appears a segment with one of the good counts.
+;; (print (list/len (filter (\ (x) (equal-any? (string/len x) 2 4 3 7))
+;;   (flatten (map second input)))))
+; not 802, 1088, 154, 138
+
+; Part 2 is the actual hard part.
+
+(defun string->patlist (str)
+  (for (\ (b) (- b 0x60)) (string/bytes str)))
+
+; apply a transformation (list of 7 numbers) to a pattern.
+(defun apply-transformation (trans pat)
+  (for (\ (x) (list/nth trans x)) pat))
+
+; is this proposed transformed segment layout valid?
+(defun pat-valid? (pat) (map/contains pat-to-digit (sort pat)))
+
+(define perms (permutations (for ++ (range 7))))
+
+(defun solve-patterns (pats)
+  (let1 loop [perms-left perms]
+    (print "trying " (car perms-left))
+    (if (all pat-valid? (for (\ (pat) (apply-transformation (car perms-left) pat)) pats))
+      ; wow
+      perm
+      (loop (cdr perms-left)))))
+
+(print (let (
+  [input (for string->patlist (caar input))]
+  [_ (prn input)])
+  (solve-patterns input)))
