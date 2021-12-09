@@ -1,0 +1,73 @@
+(defun process-input (input)
+  (fold (\ (map (y row))
+    (fold (\ (map (x chr))
+      (map/insert! map (cons x y) (read/integer chr)))
+      map (enumerate (string/chars row))))
+    (transient/new (map/new)) (enumerate (string/lines input))))
+
+; It takes a good 30 seconds to process the input...
+; (define input (process-input (io/read-file "day09.txt")))
+;; (define test-input (process-input <<EOF
+;; 2199943210
+;; 3987894921
+;; 9856789892
+;; 8767896789
+;; 9899965678
+;; EOF
+;; ))
+(define input (read/map (io/read-file "day09-input.txt")))
+(define test-input (read/map (io/read-file "day09-test-input.txt")))
+
+; Pair destructuring is borked
+(defun neighbors (map pos)
+  (filter-map (\ (dpos)
+    (map/get map (cons (+ (car pos) (car dpos)) (+ (cdr pos) (cdr dpos)))))
+    '((1 . 0) (0 . 1) (-1 . 0) (0 . -1))))
+(defun low-point? (map pos)
+  (all (curry < (map/get map pos)) (neighbors map pos)))
+
+(defun risk-level (map pos) (++ (map/get map pos)))
+
+; return a function that closes over the map and returns
+; the position that a position flows down to, or `false` if it's height 9
+(defun flow-fn (map)
+  ; We must only memoize over the *position*, because doing a lookup of the hashmap in the other hashmap
+  ; will be very slow.
+  ; So we define a function that *closes over* the map so it only uses the pos as a lookup
+  (memoize-loop loop (pos)
+    (define height (map/get map pos))
+    (if (= 9 height) false (do
+      (define neighbors (filter-map (\ (dpos)
+        (define npos (cons (+ (car pos) (car dpos)) (+ (cdr pos) (cdr dpos))))
+        (if-let n (map/get map npos)
+          (list npos n)
+          false))
+        '((1 . 0) (0 . 1) (-1 . 0) (0 . -1))))
+      (define lowest-neighbor (least/by-key neighbors second))
+      (if (< (second lowest-neighbor) height)
+        (loop (first lowest-neighbor))
+        ; ey we're the lowest
+        pos)))))
+
+; Counting each basin and how many times things flow to it.
+(defun basins (map)
+  (define flow (flow-fn map))
+  (transient/persist! (fold (\ (counter pos) 
+    (if-let lowest-point (flow pos)
+      (do
+        (counter/add! counter lowest-point))
+      counter))
+    (transient/new (counter/new)) (map/keys map))))
+
+(defun part1 (map)
+  (fold1 + (filter-map (\ (pos)
+    (and (low-point? map pos) (risk-level map pos)))
+    (map/keys map))))
+;; (alert (part1 input))
+
+(defun part2 (map)
+  (define blobs (basins map))
+  (fold1 * (take 
+    (sort (map/vals blobs) >)
+    3)))
+(alert (part2 input))
