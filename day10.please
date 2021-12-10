@@ -1,0 +1,77 @@
+(define opener2closer '#{
+  "(" ")" "{" "}" "[" "]" "<" ">"
+})
+(define closer2opener '#{
+   ")" "(" "}" "{" "]" "[" ">" "<"
+})
+
+(define scores/illegal '#{
+  ")" 3 "]" 57 "}" 1197 ">" 25137
+})
+; The stack has the chars in the right *order* but they point the wrong way, so this table
+; has the open parens and not close like what's in the puzzle statement.
+(define scores/complete '#{
+  "(" 1 "[" 2 "{" 3 "<" 4
+})
+
+(define process-input string/lines)
+
+(define input (process-input (io/read-file "day10.txt")))
+(define test-input (process-input <<EOF
+[({(<(())[]>[[{[]{<()<>>
+[(()[<>])]({[<{<<[]>>(
+{([(<{}[<>[]}>{[]{[(<()>
+(((({<>}<{<{<>}{[]{[]{}
+[[<[([]))<([[{}[[()]]]
+[{[{({}]{}}([{[{{{}}([]
+{<[[]]>}<{[{[{[]{()[[[]
+[<(<(<(<{}))><([]([]()
+<{([([[(<>()){}]>(<<{{
+<{([{{}}[<[[[<>{}]]]>[]]
+EOF
+))
+
+; Return the-illegal-closing-character on the line or stack otherwise
+(defun scan-parens (line)
+  ; stack full of unresolved opening chars
+  (let loop ([line (string/chars line)] [stack ()])
+    ;; (print (apply string stack) " : " (apply string line))
+    (if line (do
+      (define chr (car line))
+      (if-let opener (map/get closer2opener chr)
+        ; we better hope the stack has the right opener to match
+        (if (equals? opener (car stack))
+          ; good! pop stack and keep going
+          (loop (cdr line) (cdr stack))
+          ; oh god we failed
+          chr)
+        ; `chr` *is* an opener; push it to the stack and keep going.
+        (loop (cdr line) (cons chr stack))))
+    ; well we ran out of line and it's incomplete
+    stack)))
+
+(defun autocomplete-score (stack)
+  (fold (\ (score chr) (+ (* 5 score) (map/get scores/complete chr)))
+    0 stack))
+
+(defun part1 (input)
+  (fold1 + (filter-map (\ (line)
+    (define scanned (scan-parens line))
+    (if (string? scanned) 
+      (map/get scores/illegal scanned)
+      false))
+    input)))
+
+(defun part2 (input)
+  (define scores (filter-map 
+    (\ (line)
+      (define scanned (scan-parens line))
+      (and (list? scanned) (autocomplete-score scanned)))
+    input))
+  (list/nth (sort scores) (/ (list/len scores) 2)))
+
+; part 1
+;; (alert (part1 input))
+
+; part 2
+(alert (part2 input))
