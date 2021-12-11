@@ -1,0 +1,124 @@
+(defun process-input (input) (transient/persist! 
+  (fold (\ (octopi (y line))
+    (fold (\ (octopi (x chr))
+      (map/insert! octopi (list x y) (read/integer chr)))
+      octopi (enumerate (string/chars line))))
+    (transient/new (map/new)) (enumerate (string/lines input)))))
+
+(define input (process-input (io/read-file "day11.txt")))
+(define test-input (process-input <<EOF
+11111
+19991
+19191
+19991
+11111
+EOF
+))
+(define test-input2 (process-input <<EOF
+5483143223
+2745854711
+5264556173
+6141336146
+6357385478
+4167524645
+2176841721
+6882881134
+4846848554
+5283751526
+EOF
+))
+
+(define neighbors '(
+  (-1 -1) (0 -1) (1 -1)
+  (-1  0)        (1  0)
+  (-1  1) (0  1) (1  1)))
+
+(defun max-xy (grid)
+  (let loop ([max-x 0] [max-y 0] [poses (map/keys grid)])
+    (if poses
+      (let (
+        [(x y) (car poses)]
+        [max-x' (if (> max-x x) max-x x)]
+        [max-y' (if (> max-y y) max-y y)])
+        (loop max-x' max-y' (cdr poses)))
+      (list max-x max-y))))
+
+(defun print-grid (grid)
+  (define (max-x max-y) (max-xy grid))
+  (discard (for (\ (y)
+    (apply print 
+      (for (\ (x) (map/get grid (list x y))) (range (++ max-x)))))
+    (range (++ max-y)))))
+
+; Octopi must be transient
+; Returns list where 0 is mutated octopi and 1 is lists of coords of flashing octopi
+(defun step-octos (octopi)
+  (define octopi (fold (\ (octopi pos) (map/insert! octopi pos (++ (map/get octopi pos)))) octopi (map/keys octopi)))
+  ; return (list octopi already-flashed)
+  (defun energize (pos octopi already-flashed)
+    (if-let energy (map/get octopi pos)
+      (if (and (> energy 9) (not (map/contains? already-flashed pos)))
+        ; alright! stick this position in the flashed pile and energize its neighbors
+        (fold 
+          (\ ((octopi already-flashed) (dx dy))
+            (define npos (list (+ dx (first pos)) (+ dy (second pos))))
+            (define octopi (if-let energy (map/get octopi npos)
+              (map/insert! octopi npos (++ energy))
+              octopi))
+            (energize npos octopi already-flashed))
+          (list octopi (map/insert! already-flashed pos true)) neighbors)
+        ; well we didn't have enough energy or we already flashed. too bad
+        (list octopi already-flashed))
+      ; oops oob
+      (list octopi already-flashed)))
+  (define (octopi flashed) (fold (\ ((octopi flashed) pos)
+    (energize pos octopi flashed))
+    (list octopi (transient/new (map/new))) (map/keys octopi)))
+  ; Reset everything that's been flashed
+  (define octopi (apply map/insert! octopi (flatten (zip (map/keys flashed) (repeat 0)))))
+  (list octopi (map/keys flashed)))
+
+; (octopi flash-count)
+(defun flash-count (octopi n)
+  (let loop ([octopi octopi] [n n] [flash-count 0])
+    (if (= n 0)
+      (list octopi flash-count)
+      (let ([(octopi flashed) (step-octos octopi)])
+        (loop octopi (-- n) (+ flash-count (list/len flashed)))))))
+
+(defun part1 (octopi [default n 100])
+  (define (grid flashes) (flash-count (transient/new octopi) n))
+  (print-grid grid)
+  (print flashes))
+
+(defun part2 (octopi)
+  (define (max-x max-y) (max-xy octopi))
+  (define area (* (++ max-x) (++ max-y)))
+  (print "expecting " area " flashes")
+  ; count from 1 cause we do 1 flash by the time we read it first
+  (let loop ([n 1] [octopi (transient/new octopi)])
+    (define (octopi flashes) (step-octos octopi))
+    (define flash-count (list/len flashes))
+    (print "#" n ": " flash-count " flashes")
+    (if (= area flash-count)
+      ; yoo
+      n
+      (loop (++ n) octopi))))
+
+;; (print-grid '#{
+;;   (0 0) 0 (1 0) 1 (2 0) 2
+;;   (0 1) 3 (1 1) 4 (2 1) 5
+;;   (0 2) 6 (1 2) 7 (2 2) 8 
+;; })
+
+;; (part1 (process-input <<EOF
+;; 870
+;; 700
+;; 000
+;; EOF
+;; ) 1)
+
+;; (part1 test-input2 10)
+;; (part1 input 100)
+
+(alert (part2 input))
