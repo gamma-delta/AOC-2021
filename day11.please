@@ -88,18 +88,17 @@ EOF
 
 (defun part1 (octopi [default n 100])
   (define (grid flashes) (flash-count (transient/new octopi) n))
-  (print-grid grid)
-  (print flashes))
+  flashes)
 
 (defun part2 (octopi)
   (define (max-x max-y) (max-xy octopi))
   (define area (* (++ max-x) (++ max-y)))
-  (print "expecting " area " flashes")
+  ;; (print "expecting " area " flashes")
   ; count from 1 cause we do 1 flash by the time we read it first
   (let loop ([n 1] [octopi (transient/new octopi)])
     (define (octopi flashes) (step-octos octopi))
     (define flash-count (list/len flashes))
-    (print "#" n ": " flash-count " flashes")
+    ;; (print "#" n ": " flash-count " flashes")
     (if (= area flash-count)
       ; yoo
       n
@@ -119,6 +118,8 @@ EOF
 ;; ) 1)
 
 ;; (part1 test-input2 10)
-;; (part1 input 100)
 
-(alert (part2 input))
+(profiling/do (do
+  (alert (part1 input))
+  (alert (part2 input))
+))

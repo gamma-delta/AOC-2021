@@ -1,0 +1,98 @@
+(define matcher (peg/compile '#{
+  cave (+ (some (range "AZ")) (some (range "az")))
+  cave-sym (/ 'cave string->symbol)
+  link (group (* cave-sym "-" cave-sym))
+  main (* link (? (* nl main)))
+}))
+
+; sadly this is actually the best way to do this
+(define big-matcher (peg/compile '(some (range "AZ"))))
+(defun is-big? (cave)
+  (list? (peg/match big-matcher (symbol->string cave))))
+
+; the input is based on SYMBOLS
+(defun process-input (input)
+  (define links (peg/match matcher input))
+  (let make-graph ([graph (transient/new (map/new))] [links links])
+    (if (not links)
+      ; hey we're done
+      (transient/persist! graph)
+      (do
+        (define link (car links))
+        ; For a pair c-d, insert d into c's list and c into d's list
+        (define graph (fold 
+          (\ (graph (c d))
+            (if-let links (map/get graph c)
+              (if (find d links)
+                ; we knew about this link
+                graph
+                ; hey it's new!
+                (map/insert! graph c (cons d links)))
+              ; we've never even seen this link!
+              (map/insert! graph c (list d))))
+          graph (list link (list/rev link))))
+        (make-graph graph (cdr links))))))
+
+(define input (process-input (io/read-file "day12.txt")))
+(define test-input (process-input <<EOF
+start-A
+start-b
+A-c
+A-b
+b-d
+A-end
+b-end
+EOF
+))
+
+; Return a bunch of lists with all the paths. They will be backwards with the most recent thing at the front.
+(defun floodfill (graph start target)
+  ; return the number of paths that found the end
+  (let loop ([cave start] [seen-smalls (map/new)] [path-taken ()])
+    (define path-taken (cons cave path-taken))
+    ; if this is our target, we found one path!
+    (if (equals? cave target) 
+      (list path-taken) ; here's one path!
+      (do
+        (define seen-smalls (if (is-big? cave) seen-smalls (map/insert seen-smalls cave true)))
+        (define links (map/get graph cave))
+        (define valid-links (filter (\ (c) (not (map/contains? seen-smalls c))) links))
+        ; for each remaining link, check all of its paths.
+        (fold (\ (found-paths next-cave)
+          (append found-paths (loop next-cave seen-smalls path-taken)))
+          () valid-links)))))
+
+; Floodfill except you can visit one thing exactly twice
+(defun floodfill* (graph start target)
+  ; return the number of paths that found the end
+  (let loop ([cave start] [seen-smalls (map/new)] [path-taken ()] [visited-twice? false])
+    (define path-taken (cons cave path-taken))
+    ; if this is our target, we found one path!
+    (if (equals? cave target) 
+      (do 
+        (print "found " path-taken) 
+        (list path-taken))
+      (do
+        (define seen-smalls' (if (is-big? cave) seen-smalls (map/insert seen-smalls cave true)))
+        (define links (map/get graph cave))
+        (fold (\ (found-paths next-cave)
+          (if (map/contains? seen-smalls next-cave)
+            ; If we've used our chance, or we're trying to double back to the start,
+            ; treat this like a normal failure.
+            (if (or visited-twice? (equals? next-cave start))
+              found-paths ; just keep our accumulator
+              (append found-paths (loop next-cave seen-smalls' path-taken true)))
+            ; Otherwise this is just a standard loop.
+            (append found-paths (loop next-cave seen-smalls' path-taken visited-twice?))))
+          () links)))))
+
+
+(defun part1 (graph)
+  (define paths (floodfill graph 'start 'end))
+  (list/len paths))
+(defun part2 (graph)
+  (define paths (floodfill* graph 'start 'end))
+  (list/len paths))
+
+;; (alert (part1 input))
+(alert (part2 input))
