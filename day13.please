@@ -1,0 +1,101 @@
+(define matcher (peg/compile '#{
+  coord `(* <-integer "," <-integer)
+  coords (split coord nl)
+
+  fold `(* "fold along " (/ 'w string->symbol) "=" <-integer)
+  folds (split fold nl)
+
+  main (* `coords (2 nl) `folds)
+}))
+
+(defun process-input (input) 
+  (define (dots folds) (peg/match matcher input))
+  (list
+    (apply map/new (flatten (zip dots (repeat nil))))
+    folds))
+
+;; (define input (process-input (io/read-file "day13.txt")))
+;; (define test-input (process-input <<EOF
+;; 6,10
+;; 0,14
+;; 9,10
+;; 0,3
+;; 10,4
+;; 4,11
+;; 6,0
+;; 6,12
+;; 4,1
+;; 0,13
+;; 10,12
+;; 3,4
+;; 3,0
+;; 8,4
+;; 1,10
+;; 2,14
+;; 8,10
+;; 9,0
+
+;; fold along y=7
+;; fold along x=5
+;; EOF
+;; ))
+(define input (car (read (io/read-file "day13.input.txt"))))
+(define test-input (car (read (io/read-file "day13.test-input.txt"))))
+
+(defun fold-coord ((x y) (axis magn))
+  ; x = 5 is a translation of the Y axis.
+  ; If we flip over x, we modify y, and vice versa.
+  ; So the end result is, if x=5, we flip over x.
+  (define d (if (equals? axis 'x) x y))
+  (define d' (cond
+    [(< d magn) d]
+    [(> d magn) (- magn (- d magn))]
+    (! 'dot-on-line "the dot was on a fold line" (list (list x y) (list axis magn)))))
+  (if (equals? axis 'x)
+    (list d' y)
+    (list x d')))
+
+(defun fold-paper (dots fold)
+  ; clear the map to reuse the allocation
+  (let loop ([dots-left (map/keys dots)] [dot-record (map/clear! dots)])
+    (if (not dots-left)
+      dot-record
+      (loop 
+        (cdr dots-left)
+        (map/insert! dot-record (fold-coord (car dots-left) fold) nil)))))
+
+; One would think part of the charm of AOC is that you don't need an OCR library
+; to do this entirely by computer.
+(defun max-xy (grid)
+  (let loop ([max-x 0] [max-y 0] [poses (map/keys grid)])
+    (if poses
+      (let (
+        [(x y) (car poses)]
+        [max-x' (if (> max-x x) max-x x)]
+        [max-y' (if (> max-y y) max-y y)])
+        (loop max-x' max-y' (cdr poses)))
+      (list max-x max-y))))
+
+(defun print-grid (grid)
+  (define (max-x max-y) (max-xy grid))
+  (discard (for (\ (y)
+    (apply print 
+      (for (\ (x) 
+        (if (map/contains? grid (list x y)) "#" " ")) 
+        (range (++ max-x)))))
+    (range (++ max-y)))))
+
+(defun part1 ((dots lines))
+  (define dots (transient/new dots))
+  (define dots (fold-paper dots (car lines)))
+  (map/len dots))
+
+(defun part2 ((dots lines))
+  (define dots (transient/new dots))
+  (define dots (fold 
+    (\ (dots fold) (fold-paper dots fold)) 
+    dots lines))
+  (print-grid dots))
+
+(alert (part1 input))
+(part2 input)

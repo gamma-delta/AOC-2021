@@ -1,0 +1,93 @@
+; omg omg i can use peg
+
+(define input-matcher (peg/compile '#{
+  caps (range "AZ")
+  polymer `(some 'caps)
+  pair-insertion `(* (2 'caps) " -> " 'caps)
+
+  main (* polymer (2 nl) `(split pair-insertion nl))
+}))
+
+(defun process-input (input) 
+  (define (polymer rules) (peg/match input-matcher input))
+  (define counter (fold 
+    (\ (counter pair)
+      (counter/add! counter (apply string pair)))
+    (transient/new (counter/new)) (windows polymer 2)))
+  (define rules (for 
+    (\ ((l r c)) (list (string l r) (string l c) (string c r))) 
+    rules))
+  (list polymer counter rules))
+
+(define input (process-input (io/read-file "day14.txt")))
+(define test-input (process-input <<EOF
+NNCB
+
+CH -> B
+HH -> N
+CB -> H
+NH -> C
+HB -> C
+HC -> B
+HN -> C
+NN -> C
+BH -> H
+NC -> B
+NB -> B
+BN -> B
+BB -> N
+BC -> B
+CC -> N
+CN -> C
+EOF
+))
+
+(defun extend-polymer (polymer rules [default n 1])
+  (let countdown ([n n] [polymer polymer])
+    (if (<= n 0)
+      polymer 
+      (countdown (-- n)
+        (fold 
+          (\ (new-poly (check replace-l replace-r))
+            (if-let n (map/get polymer check)
+              (-> new-poly
+                (counter/add-n! (list replace-l n))
+                (counter/add-n! (list replace-r n)))
+              new-poly))
+          (transient/new (map/new)) rules)))))
+
+(defun decompose-polymer (poly)
+  (fold 
+    (\ (counter (l r)) (counter/add! counter (string l r)))
+    (transient/new (map/new)) (windows (string/chars poly) 2)))
+
+(defun solve ((original start rules) n)
+  (define polymer (extend-polymer start rules n))
+  ; We know that the first and last letters will never change.
+  ; So, we count all the second letters in pairs, then insert the first char.
+  (define char-counter (counter/add! 
+    (fold 
+      (\ (chars (pair count)) 
+        (counter/add-n! chars (list (string/nth pair 1) count)))
+      (transient/new (map/new)) (map->list polymer))
+    (car original)))
+  
+  (define (least most) (let loop (
+    [counts (map->list char-counter)]
+    ; test problem gives 2192039569602 as a possible upper bound; i'll do 1000 times that
+    [least 1000000000000000]
+    [most 0])
+    (if (not counts) (list least most) (do
+      (define count (cadar counts))
+      (apply loop (cdr counts) (cond
+        [(< count least) (list count most)]
+        [(> count most) (list least count)]
+        (list least most)))))))
+
+  (- most least))
+
+; part 1
+(alert (solve input 10))
+
+; part 2
+(alert (solve input 40))
